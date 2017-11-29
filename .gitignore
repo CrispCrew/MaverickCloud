@@ -1,0 +1,8 @@
+.vs/*
+CloudServer/obj/*
+CloudClient/obj/*
+CloudServer/bin/*
+CloudClient/bin/*
+*.txt
+*.txt
+CloudServer/bin/x64/Debug/Users/CrispyCheats/File.txt
