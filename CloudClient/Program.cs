@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CloudClient.Storage;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -12,283 +13,115 @@ namespace CloudClient
 {
     public class Program
     {
-        /// <summary>
-        /// The Server ClientSocket
-        /// </summary>
-        public static TcpClient clientSocket = new TcpClient();
-
-        /// <summary>
-        /// The Network Stream
-        /// </summary>
-        public static NetworkStream serverStream = null;
+        public static string UserPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\MaverickCloud\\";
+        public static string CustomPath = Environment.CurrentDirectory + "\\MaverickCloud\\";
 
         public static void Main(string[] args)
         {
-            string Token = null;
+            Cache.Folders.Add(UserPath);
+            Cache.Folders.Add(CustomPath);
+
+            //string Token = null;
 
             //Console Title
             Console.Title = "Maverick Logs";
 
-            Connect();
+            //Client connect = new Client();
 
-            Version();
+            //connect.Version();
 
-            Login("CrispyCheats", "test", out Token);
+            //connect.Login("CrispyCheats", "test", out Token);
 
-            Upload(Token, "", "C:\\File.txt", "File.txt");
+            //connect.Upload(Token, "", "C:\\File.txt", "File.txt");
+
+            //connect.Download(Token, "", "C:\\File.txt", "File.txt");
+
+            foreach (string path in Cache.Folders)
+            {
+                if (!Directory.Exists(Path.GetDirectoryName(path)))
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+
+                Console.WriteLine("[NOTICE] FileSystemWatcher: Adding Watcher {Path=" + Path.GetDirectoryName(path) + "}");
+
+                FileSystemWatcher watcher = new FileSystemWatcher();
+                watcher.Path = Path.GetDirectoryName(path);
+                watcher.IncludeSubdirectories = true;
+                watcher.InternalBufferSize = 16384;
+
+                watcher.Error += Watcher_Error;
+                watcher.Created += Watcher_Created;
+                watcher.Changed += Watcher_Changed;
+                watcher.Renamed += Watcher_Renamed;
+                watcher.Deleted += Watcher_Deleted;
+
+                watcher.EnableRaisingEvents = true;
+
+                Cache.SystemWatchers.Add(watcher);
+            }
+
+            Console.ReadLine();
         }
 
-        public static void Connect()
+        private static void Watcher_Error(object sender, ErrorEventArgs e)
         {
-            //Log Init
-            Console.WriteLine("Logging Init");
-
-            //Establish Server Connection
-            Console.WriteLine("Client Started");
-
-            clientSocket.NoDelay = true;
-
-            clientSocket.Connect("127.0.0.1", 6969);
-
-            Console.WriteLine("Client Socket Program - Server Connected ...");
+            Console.WriteLine("[ERROR] FileSystemWatcher: " + e.ToString());
         }
 
-        /// <summary>
-        /// Contacts server for Version Number
-        /// </summary>
-        /// <returns>Version</returns>
-        public static string Version()
+        private static void Watcher_Created(object sender, FileSystemEventArgs e)
         {
-            if (!clientSocket.Connected)
-                Connect();
+            Console.WriteLine("[NOTICE] FileSystemWatcher: FileCreated {FileName=" + e.Name + ", FullPath=" + e.FullPath + ", ChangeType=Created}");
 
-            CleanStream();
+            Console.WriteLine("[NOTICE] FileSystemWatcher: Attempting to clean the File Path for Syncing.");
 
-            //Sockets Connection
-            //Debug - Log Times
-            Stopwatch timer = new Stopwatch();
-            timer.Start();
+            string FullPath = e.FullPath;
+            string SyncPath = "";
+            string Filtered = "";
 
-            string Response = API.SendAPIRequest(clientSocket, "Request=Version");
+            foreach (FileSystemWatcher watcher in Cache.SystemWatchers)
+                if (e.FullPath.Contains(watcher.Path))
+                    SyncPath = watcher.Path;
 
-            Console.WriteLine(timer.Elapsed.TotalMilliseconds + "ms");
+            Filtered = Path.GetDirectoryName(e.FullPath).Replace(SyncPath, "");
 
-            timer.Reset();
-
-            return Response;
+            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", Filtered=" + Filtered +"}");
         }
 
-        /// <summary>
-        /// Contacts server for Login Check
-        /// </summary>
-        /// <param name="Username">Username</param>
-        /// <param name="Password">Password</param>
-        /// <param name="HWID">Hardware ID</param>
-        /// <param name="Token">Users Token</param>
-        /// <returns></returns>
-        public static string Login(string Username, string Password, out string Token)
+        private static void Watcher_Changed(object sender, FileSystemEventArgs e)
         {
-            string Success;
-
-            if (!clientSocket.Connected)
-                Connect();
-
-            CleanStream();
-
-            Token = "";
-
-            if (!Prepare.PrepareString(Username) || !Prepare.PrepareString(Password))
-            {
-                if (!Prepare.PrepareString(Username))
-                    Console.WriteLine("Prepare Failed: Username=" + Username);
-                else if (!Prepare.PrepareString(Password))
-                    Console.WriteLine("Prepare Failed: Password=" + Password);
-
-                return "Empty Credentials";
-            }
-
-            //Sockets Connection
-            //Debug - Log Times
-            Stopwatch timer = new Stopwatch();
-            timer.Start();
-
-            string Response = API.SendAPIRequest(clientSocket, "Request=Login&Username=" + Username + "&Password=" + Password);
-
-            if (Response.Split('-')[0] == "Login Found")
-            {
-                Token = Response.Split('-')[1];
-
-                Console.WriteLine("Login Found: " + Username + " -> " + Password + " -> " + Token);
-
-                Success = "Login Found";
-            }
-            else
-            {
-                Console.WriteLine("Error: Login not Found -> " + Response);
-
-                Success = Response;
-            }
-
-            Console.WriteLine(timer.Elapsed.TotalMilliseconds + "ms");
-
-            timer.Reset();
-
-            return Success;
+            throw new NotImplementedException();
         }
 
-        /*
-         * ToDo
-         * Add Full File Path
-         * Add Relevant Path ( Sync Folder Name + Internal Folder Path )
-         * Add Download Capability ( Actually Download the File )
-        */
-
-        /// <summary>
-        /// Contacts server for a download - Cheat / Update
-        /// </summary>
-        /// <param name="Token">User Token</param>
-        /// <param name="File">File to Download</param>
-        /// <param name="productid">Product ID</param>
-        /// <returns></returns>
-        public static bool Upload(string Token, string SyncFolder, string FullPath, string Name)
+        private static void Watcher_Deleted(object sender, FileSystemEventArgs e)
         {
-            if (!clientSocket.Connected)
-                Connect();
-
-            CleanStream();
-
-            if (!Prepare.PrepareString(Token))
-            {
-                if (!Prepare.PrepareString(Token))
-                    Console.WriteLine("Prepare Failed: Token=" + Token);
-
-                return false;
-            }
-
-            //Sockets Connection
-            //Debug - Log Times
-            Stopwatch timer = new Stopwatch();
-            timer.Start();
-
-            serverStream = clientSocket.GetStream();
-            byte[] outStream = Encoding.ASCII.GetBytes("Request=Upload&Token=" + Token + "&Folder=" + "" + "&Path=" + FullPath + "&Name=" + Name);
-            byte[] outSize = BitConverter.GetBytes(outStream.Length);
-
-            Console.WriteLine("Raw Data: " + BitConverter.ToInt32(outSize, 0) + " -> " + Encoding.ASCII.GetString(outStream));
-
-            //Write Bytes
-            serverStream.Write(outSize, 0, outSize.Length);
-            serverStream.Write(outStream, 0, outStream.Length);
-            serverStream.Flush();
-
-            //Wait for Response - TODO: Add Recieve Byte outSize
-
-            using (FileStream fileStream = File.OpenRead(FullPath))
-            {
-                long expectedsize = File.ReadAllBytes(FullPath).LongLength;
-
-                Console.WriteLine("File: " + FullPath + " Size: " + expectedsize);
-
-                outStream = Encoding.ASCII.GetBytes("Size=" + expectedsize);
-                outSize = BitConverter.GetBytes(outStream.Length);
-
-                Console.WriteLine("Raw Data: " + BitConverter.ToInt32(outSize, 0) + " -> " + Encoding.ASCII.GetString(outStream));
-
-                //Write Bytes
-                serverStream.Write(outSize, 0, outSize.Length);
-                serverStream.Write(outStream, 0, outStream.Length);
-                serverStream.Flush();
-
-                int totalBytes = 0;
-                int bytesRead = 0;
-                while (true)
-                {
-                    byte[] buffer = new byte[13106]; //65536 Bytes * 2 = 1310720 Bytes/ps || 10 Mbps
-
-                    if ((totalBytes + buffer.Length) <= expectedsize) //sent bytes + sending bytes smaller than or equal to Size of File
-                    {
-                        if ((bytesRead = fileStream.Read(buffer, 0, buffer.Length)) > 0)
-                        {
-                            serverStream.Write(buffer, 0, bytesRead);
-
-                            totalBytes += bytesRead;
-
-                            Console.Write("\rNetwork Size: {0} Bytes Read: {1}", buffer.Length, totalBytes);
-                        }
-                        else
-                        {
-                            Console.WriteLine("FileStream == 0");
-
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        if ((bytesRead = fileStream.Read(buffer, 0, (int)expectedsize - totalBytes)) > 0)
-                        {
-                            serverStream.Write(buffer, 0, bytesRead);
-
-                            totalBytes += bytesRead;
-
-                            Console.WriteLine("\rNetwork Size: {0} Bytes Read: {1}", buffer.Length, totalBytes);
-                        }
-                        else
-                        {
-                            Console.WriteLine("FileStream == 0");
-
-                            break;
-                        }
-                    }
-
-                    Thread.Sleep(10); //10 mbps
-                }
-
-                serverStream.Flush();
-            }
-
-            Console.WriteLine(timer.Elapsed.TotalMilliseconds + "ms");
-
-            timer.Reset();
-
-            return true;
-        }
-        
-        public static bool Download(string Token, string SyncFolder, string FullPath, string Name)
-        {
-            if (!clientSocket.Connected)
-                Connect();
-
-            CleanStream();
-
-            if (!Prepare.PrepareString(Token))
-            {
-                if (!Prepare.PrepareString(Token))
-                    Console.WriteLine("Prepare Failed: Token=" + Token);
-
-                return false;
-            }
-
-            return true;
+            throw new NotImplementedException();
         }
 
-        private static void CleanStream()
+        private static void Watcher_Renamed(object sender, RenamedEventArgs e)
         {
-            if (!clientSocket.Connected)
-                Connect();
+            throw new NotImplementedException();
+        }
 
-            if (serverStream == null)
-                return;
+        private static string GetRightPartOfPath(string path, string startAfterPart)
+        {
+            // use the correct seperator for the environment
+            var pathParts = path.Split(Path.DirectorySeparatorChar);
 
-            Console.WriteLine("Cleaning Stream");
+            // this assumes a case sensitive check. If you don't want this, you may want to loop through the pathParts looking
+            // for your "startAfterPath" with a StringComparison.OrdinalIgnoreCase check instead
+            int startAfter = Array.IndexOf(pathParts, startAfterPart);
 
-            byte[] buffer = new byte[4096];
-
-            while (serverStream.DataAvailable)
+            if (startAfter == -1)
             {
-                Console.WriteLine("Cleared Data");
-
-                serverStream.Read(buffer, 0, buffer.Length);
+                // path path not found
+                return null;
             }
+
+            // try and work out if last part was a directory - if not, drop the last part as we don't want the filename
+            var lastPartWasDirectory = pathParts[pathParts.Length - 1].EndsWith(Path.DirectorySeparatorChar.ToString());
+            return string.Join(
+                Path.DirectorySeparatorChar.ToString(),
+                pathParts, startAfter,
+                pathParts.Length - startAfter - (lastPartWasDirectory ? 0 : 1));
         }
     }
 }

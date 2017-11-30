@@ -225,6 +225,9 @@ namespace CloudServer.HandleClients
         {
             string FullPath = Path.GetDirectoryName(path) + "\\" + name;
 
+            if (!Directory.Exists(Path.GetDirectoryName(path)))
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+
             Console.WriteLine("FullPath: " + FullPath);
 
             byte[] size = new byte[4];
