@@ -69,6 +69,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Storage\Memory\Cache.cs" />
+    <Compile Include="Types\SyncQueue.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

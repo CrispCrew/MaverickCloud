@@ -1,13 +1,7 @@
 ﻿using CloudClient.Storage;
+using CloudClient.Types;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CloudClient
 {
@@ -21,20 +15,20 @@ namespace CloudClient
             Cache.Folders.Add(UserPath);
             Cache.Folders.Add(CustomPath);
 
-            //string Token = null;
+            string Token = null;
 
             //Console Title
             Console.Title = "Maverick Logs";
 
-            //Client connect = new Client();
+            Client connect = new Client();
 
-            //connect.Version();
+            connect.Version();
 
-            //connect.Login("CrispyCheats", "test", out Token);
+            connect.Login("CrispyCheats", "test", out Token);
 
-            //connect.Upload(Token, "", "C:\\File.txt", "File.txt");
+            connect.Upload(Token, "", "C:\\File.txt", "File.txt");
 
-            //connect.Download(Token, "", "C:\\File.txt", "File.txt");
+            connect.Download(Token, "", "C:\\File.txt", "File.txt");
 
             foreach (string path in Cache.Folders)
             {
@@ -71,34 +65,81 @@ namespace CloudClient
         {
             Console.WriteLine("[NOTICE] FileSystemWatcher: FileCreated {FileName=" + e.Name + ", FullPath=" + e.FullPath + ", ChangeType=Created}");
 
-            Console.WriteLine("[NOTICE] FileSystemWatcher: Attempting to clean the File Path for Syncing.");
-
-            string FullPath = e.FullPath;
             string SyncPath = "";
-            string Filtered = "";
+            string FullPath = e.FullPath;
+            string FolderPath = "";
+            string Name = e.Name;
 
             foreach (FileSystemWatcher watcher in Cache.SystemWatchers)
                 if (e.FullPath.Contains(watcher.Path))
                     SyncPath = watcher.Path;
 
-            Filtered = Path.GetDirectoryName(e.FullPath).Replace(SyncPath, "");
+            FolderPath = Path.GetDirectoryName(e.FullPath).Replace(SyncPath, "");
 
-            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", Filtered=" + Filtered +"}");
+            Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Created, SyncPath, FullPath, FolderPath, Name));
+
+            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", Filtered=" + FolderPath + "}");
         }
 
         private static void Watcher_Changed(object sender, FileSystemEventArgs e)
         {
-            throw new NotImplementedException();
-        }
+            Console.WriteLine("[NOTICE] FileSystemWatcher: FileChanged {FileName=" + e.Name + ", FullPath=" + e.FullPath + ", ChangeType=Changed}");
 
-        private static void Watcher_Deleted(object sender, FileSystemEventArgs e)
-        {
-            throw new NotImplementedException();
+            string SyncPath = "";
+            string FullPath = e.FullPath;
+            string FolderPath = "";
+            string Name = e.Name;
+
+            foreach (FileSystemWatcher watcher in Cache.SystemWatchers)
+                if (e.FullPath.Contains(watcher.Path))
+                    SyncPath = watcher.Path;
+
+            FolderPath = Path.GetDirectoryName(e.FullPath).Replace(SyncPath, "");
+
+            Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Changed, SyncPath, FullPath, FolderPath, Name));
+
+            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", Filtered=" + FolderPath + "}");
         }
 
         private static void Watcher_Renamed(object sender, RenamedEventArgs e)
         {
-            throw new NotImplementedException();
+            Console.WriteLine("[NOTICE] FileSystemWatcher: FileRenamed {FileName=" + e.Name + ", FullPath=" + e.FullPath + ", ChangeType=Renamed}");
+
+            string SyncPath = "";
+            string FullPath = e.FullPath;
+            string FolderPath = "";
+            string Name = e.OldName;
+            string NewName = e.Name;
+
+            foreach (FileSystemWatcher watcher in Cache.SystemWatchers)
+                if (e.FullPath.Contains(watcher.Path))
+                    SyncPath = watcher.Path;
+
+            FolderPath = Path.GetDirectoryName(e.FullPath).Replace(SyncPath, "");
+
+            Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Renamed, SyncPath, FullPath, FolderPath, Name, NewName));
+
+            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", Filtered=" + FolderPath + "}");
+        }
+
+        private static void Watcher_Deleted(object sender, FileSystemEventArgs e)
+        {
+            Console.WriteLine("[NOTICE] FileSystemWatcher: FileDeleted {FileName=" + e.Name + ", FullPath=" + e.FullPath + ", ChangeType=Deleted}");
+
+            string SyncPath = "";
+            string FullPath = e.FullPath;
+            string FolderPath = "";
+            string Name = e.Name;
+
+            foreach (FileSystemWatcher watcher in Cache.SystemWatchers)
+                if (e.FullPath.Contains(watcher.Path))
+                    SyncPath = watcher.Path;
+
+            FolderPath = Path.GetDirectoryName(e.FullPath).Replace(SyncPath, "");
+
+            Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Deleted, SyncPath, FullPath, FolderPath, Name));
+
+            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", Filtered=" + FolderPath + "}");
         }
 
         private static string GetRightPartOfPath(string path, string startAfterPart)
