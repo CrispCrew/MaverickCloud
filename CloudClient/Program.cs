@@ -1,34 +1,37 @@
-﻿using CloudClient.Storage;
-using CloudClient.Types;
-using System;
+﻿using System;
 using System.IO;
+using System.Threading;
 
 namespace CloudClient
 {
     public class Program
     {
+        /*
+        Copyright Protected by James Matthews, MaverickCheats and MaverickCloud (2017)
+        */
+
         public static string UserPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\MaverickCloud\\";
-        public static string CustomPath = Environment.CurrentDirectory + "\\MaverickCloud\\";
+
+        public static Client connect = new Client();
+
+        public static string Token = "";
 
         public static void Main(string[] args)
         {
             Cache.Folders.Add(UserPath);
-            Cache.Folders.Add(CustomPath);
-
-            string Token = null;
 
             //Console Title
             Console.Title = "Maverick Logs";
-
-            Client connect = new Client();
 
             connect.Version();
 
             connect.Login("CrispyCheats", "test", out Token);
 
-            connect.Upload(Token, "", "C:\\File.txt", "File.txt");
+            new Thread(ServerHealth).Start();
 
-            connect.Download(Token, "", "C:\\File.txt", "File.txt");
+            //connect.Upload(Token, "", "C:\\File.txt", "File.txt");
+
+            //connect.Download(Token, "", "C:\\File.txt", "File.txt");
 
             foreach (string path in Cache.Folders)
             {
@@ -56,6 +59,17 @@ namespace CloudClient
             Console.ReadLine();
         }
 
+        private static void ServerHealth()
+        {
+            while (true)
+            {
+                connect.APICheck(Token);
+
+                Thread.Sleep(10000);
+            }
+        }
+
+        #region FileSystemWatcher EventHandlers
         private static void Watcher_Error(object sender, ErrorEventArgs e)
         {
             Console.WriteLine("[ERROR] FileSystemWatcher: " + e.ToString());
@@ -78,7 +92,7 @@ namespace CloudClient
 
             Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Created, SyncPath, FullPath, FolderPath, Name));
 
-            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", Filtered=" + FolderPath + "}");
+            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", RelevantPath=" + FolderPath + "}");
         }
 
         private static void Watcher_Changed(object sender, FileSystemEventArgs e)
@@ -98,7 +112,7 @@ namespace CloudClient
 
             Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Changed, SyncPath, FullPath, FolderPath, Name));
 
-            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", Filtered=" + FolderPath + "}");
+            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", RelevantPath=" + FolderPath + "}");
         }
 
         private static void Watcher_Renamed(object sender, RenamedEventArgs e)
@@ -119,7 +133,7 @@ namespace CloudClient
 
             Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Renamed, SyncPath, FullPath, FolderPath, Name, NewName));
 
-            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", Filtered=" + FolderPath + "}");
+            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", RelevantPath=" + FolderPath + "}");
         }
 
         private static void Watcher_Deleted(object sender, FileSystemEventArgs e)
@@ -139,30 +153,8 @@ namespace CloudClient
 
             Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Deleted, SyncPath, FullPath, FolderPath, Name));
 
-            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", Filtered=" + FolderPath + "}");
+            Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + FullPath + ", SyncPath=" + SyncPath + ", RelevantPath=" + FolderPath + "}");
         }
-
-        private static string GetRightPartOfPath(string path, string startAfterPart)
-        {
-            // use the correct seperator for the environment
-            var pathParts = path.Split(Path.DirectorySeparatorChar);
-
-            // this assumes a case sensitive check. If you don't want this, you may want to loop through the pathParts looking
-            // for your "startAfterPath" with a StringComparison.OrdinalIgnoreCase check instead
-            int startAfter = Array.IndexOf(pathParts, startAfterPart);
-
-            if (startAfter == -1)
-            {
-                // path path not found
-                return null;
-            }
-
-            // try and work out if last part was a directory - if not, drop the last part as we don't want the filename
-            var lastPartWasDirectory = pathParts[pathParts.Length - 1].EndsWith(Path.DirectorySeparatorChar.ToString());
-            return string.Join(
-                Path.DirectorySeparatorChar.ToString(),
-                pathParts, startAfter,
-                pathParts.Length - startAfter - (lastPartWasDirectory ? 0 : 1));
-        }
+        #endregion
     }
 }

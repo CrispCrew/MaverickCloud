@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace CloudClient.Types
+﻿namespace CloudClient
 {
     public class SyncQueue
     {
@@ -16,7 +10,7 @@ namespace CloudClient.Types
             Deleted
         };
 
-        public Action EventAction; 
+        public Action EventAction;
         public string SyncPath;
         public string FullPath;
         public string Path;
@@ -31,7 +25,7 @@ namespace CloudClient.Types
         /// <param name="Name"></param>
         public SyncQueue(Action EventAction, string SyncPath, string FullPath, string FolderPath, string Name)
         {
-             
+
         }
 
         /// <summary>

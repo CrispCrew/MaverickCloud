@@ -162,12 +162,20 @@ namespace CloudServer.HandleClients
                 tokens = AuthTokens;
             }
 
+            int index = 0;
             foreach (Token token in tokens)
             {
                 if (token.IP == IP)
                 {
+                    lock (AuthTokens)
+                    {
+                        tokens[index].LastRequest = DateTime.Now;
+                    }
+
                     return token;
                 }
+
+                index++;
             }
 
             //Return false if not found
@@ -188,12 +196,20 @@ namespace CloudServer.HandleClients
                 tokens = AuthTokens;
             }
 
+            int index = 0;
             foreach (Token token in tokens)
             {
                 if (token.AuthToken == Token)
                 {
+                    lock (AuthTokens)
+                    {
+                        tokens[index].LastRequest = DateTime.Now;
+                    }
+
                     return token;
                 }
+
+                index++;
             }
 
             //Return false if not found

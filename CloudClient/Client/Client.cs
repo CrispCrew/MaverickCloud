@@ -127,6 +127,35 @@ namespace CloudClient
             return Success;
         }
 
+        public bool APICheck(string Token)
+        {
+            if (!clientSocket.Connected)
+                Connect();
+
+            CleanStream();
+
+            //Sockets Connection
+            //Debug - Log Times
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
+
+            //Send the Cheat Type at Launch
+            string Response = API.SendAPIRequest(clientSocket, "Request=APICheck&Token=" + Token);
+
+            Console.WriteLine("Request: " + "LoginCount" + " -> " + "Response: " + Response);
+
+            Console.Write(timer.Elapsed.TotalMilliseconds + "ms");
+
+            timer.Reset();
+
+            if (Response != "Authenticated")
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Contacts server for a download - Cheat / Update
         /// </summary>
