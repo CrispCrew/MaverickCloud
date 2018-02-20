@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -180,6 +181,37 @@ namespace CloudClient
             }
 
             return "Files Retrieval Failed";
+        }
+
+        public bool CreateFolder(string Token, string SyncPath, string RelevantPath, string FileName)
+        {
+            string FullPath = SyncPath + "\\" + RelevantPath + "\\" + FileName;
+
+            if (!clientSocket.Connected)
+                Connect();
+
+            CleanStream();
+
+            //Sockets Connection
+            //Debug - Log Times
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
+
+            //Send the Cheat Type at Launch
+            string Response = API.SendAPIRequest(clientSocket, "Request=CreateFolder&Token=" + Token + "&SyncPath=" + SyncPath + "&RelevantPath=" + RelevantPath + "&FileName=" + FileName);
+
+            Console.WriteLine("Request: " + "LoginCount" + " -> " + "Response: " + Response);
+
+            Console.Write(timer.Elapsed.TotalMilliseconds + "ms");
+
+            timer.Reset();
+
+            if (Response != "Folder Created")
+            {
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -443,6 +475,18 @@ namespace CloudClient
             {
                 Console.WriteLine("Created Parameter not found");
             }
+
+            return false;
+        }
+
+        public bool Delete(string Token, string SyncPath, string RelevantPath, string FileName)
+        {
+            string response = API.SendAPIRequest(clientSocket, "Request=Delete&Token=" + Token + "&SyncPath=" + SyncPath + "&RelevantPath=" + RelevantPath + "&FileName=" + FileName);
+
+            Console.WriteLine(response);
+
+            if (response == "File Deleted")
+                return true;
 
             return false;
         }

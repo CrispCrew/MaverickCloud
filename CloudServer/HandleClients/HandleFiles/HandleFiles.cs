@@ -104,7 +104,7 @@ namespace CloudServer.HandleClients
                             {
                                 FileName = Request.Get("FileName", data);
 
-                                string FullPath = ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, RelevantPath);
+                                string FullPath = ClensePath.CleanPath(AuthToken, SyncPath, RelevantPath);
 
                                 if (UploadFile(clientSocket.GetStream(), FullPath, FileName, new FileInfo(FullPath + FileName).Length))
                                 {
@@ -189,10 +189,10 @@ namespace CloudServer.HandleClients
                                             Size = Request.Get("Size", data);
 
                                             //Server Files -> User Folder -> SyncPath Folder -> Files
-                                            if (!Directory.Exists(ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, "")))
-                                                Directory.CreateDirectory(ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, ""));
+                                            if (!Directory.Exists(ClensePath.CleanPath(AuthToken, SyncPath, "")))
+                                                Directory.CreateDirectory(ClensePath.CleanPath(AuthToken, SyncPath, ""));
 
-                                            string FullPath = ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, RelevantPath);
+                                            string FullPath = ClensePath.CleanPath(AuthToken, SyncPath, RelevantPath);
 
                                             if (File.Exists(FullPath + FileName))
                                                 try { File.Delete(FullPath + FileName); } catch { Console.WriteLine("File Deletion Failed!"); }

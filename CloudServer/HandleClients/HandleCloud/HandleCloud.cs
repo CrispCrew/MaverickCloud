@@ -19,7 +19,6 @@ namespace CloudServer.HandleClients
             string Token;
             string SyncPath;
             string RelevantPath;
-            string FullPath;
             string FileName;
             string OldFileName;
             string ServerResponse;
@@ -41,37 +40,27 @@ namespace CloudServer.HandleClients
                         {
                             RelevantPath = Request.Get("RelevantPath", data);
 
-                            if (Request.Contains("FullPath", data))
+                            if (Request.Contains("FileName", data))
                             {
-                                FullPath = Request.Get("FullPath", data);
+                                FileName = Request.Get("FileName", data);
 
-                                if (Request.Contains("FileName", data))
+                                if (Request.Contains("OldFileName", data))
                                 {
-                                    FileName = Request.Get("FileName", data);
+                                    OldFileName = Request.Get("OldFileName", data);
 
-                                    if (Request.Contains("OldFileName", data))
-                                    {
-                                        OldFileName = Request.Get("OldFileName", data);
+                                    string CleanPath = ClensePath.CleanPath(AuthToken, SyncPath, RelevantPath);
 
-                                        string CleanPath = ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, RelevantPath);
-
-                                        //Return True ( File Renamed ) or False ( File Failed to Rename )
-                                        ServerResponse = CloudFunctions.RenameFile(CleanPath, FileName, OldFileName) ? "true" : "false";
-                                    }
-                                    else
-                                    {
-                                        ServerResponse = "OldFileName Parameter was not provided";
-                                    }
+                                    //Return True ( File Renamed ) or False ( File Failed to Rename )
+                                    ServerResponse = CloudFunctions.RenameFile(CleanPath, FileName, OldFileName) ? "true" : "false";
                                 }
                                 else
                                 {
-                                    ServerResponse = "FileName Parameter was not provided";
+                                    ServerResponse = "OldFileName Parameter was not provided";
                                 }
                             }
                             else
                             {
-                                ServerResponse = "FullPath Parameter was not provided";
-
+                                ServerResponse = "FileName Parameter was not provided";
                             }
                         }
                         else
@@ -103,7 +92,6 @@ namespace CloudServer.HandleClients
             string Token;
             string SyncPath;
             string RelevantPath;
-            string FullPath;
             string FileName;
             string ServerResponse;
 
@@ -124,28 +112,18 @@ namespace CloudServer.HandleClients
                         {
                             RelevantPath = Request.Get("RelevantPath", data);
 
-                            if (Request.Contains("FullPath", data))
+                            if (Request.Contains("FileName", data))
                             {
-                                FullPath = Request.Get("FullPath", data);
+                                FileName = Request.Get("FileName", data);
 
-                                if (Request.Contains("FileName", data))
-                                {
-                                    FileName = Request.Get("FileName", data);
+                                string CleanPath = ClensePath.CleanPath(AuthToken, SyncPath, RelevantPath);
 
-                                    string CleanPath = ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, RelevantPath);
-
-                                    //Return True ( File Renamed ) or False ( File Failed to Rename )
-                                    ServerResponse = CloudFunctions.DeleteFile(CleanPath, FileName) ? "true" : "false";
-                                }
-                                else
-                                {
-                                    ServerResponse = "FileName Parameter was not provided";
-                                }
+                                //Return True ( File Renamed ) or False ( File Failed to Rename )
+                                ServerResponse = CloudFunctions.DeleteFile(CleanPath, FileName) ? "File Deleted" : "File Failed to Delete";
                             }
                             else
                             {
-                                ServerResponse = "FullPath Parameter was not provided";
-
+                                ServerResponse = "FileName Parameter was not provided";
                             }
                         }
                         else
@@ -225,7 +203,7 @@ namespace CloudServer.HandleClients
                                         {
                                             FileName = Request.Get("FileName", data);
 
-                                            string FullPath = ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, RelevantPath) + FileName;
+                                            string FullPath = ClensePath.CleanPath(AuthToken, SyncPath, RelevantPath) + FileName;
 
                                             if (Convert.ToInt64(Size) != new FileInfo(FullPath).Length)
                                             {

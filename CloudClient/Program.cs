@@ -47,6 +47,7 @@ namespace CloudClient
                 watcher.Path = path;
                 watcher.IncludeSubdirectories = true;
                 watcher.InternalBufferSize = 16384;
+                watcher.NotifyFilter = NotifyFilters.FileName;
 
                 watcher.Error += Watcher_Error;
                 watcher.Created += Watcher_Created;
@@ -56,7 +57,22 @@ namespace CloudClient
 
                 watcher.EnableRaisingEvents = true;
 
+                FileSystemWatcher dirwatcher = new FileSystemWatcher();
+                dirwatcher.Path = path;
+                dirwatcher.IncludeSubdirectories = true;
+                dirwatcher.InternalBufferSize = 16384;
+                dirwatcher.NotifyFilter = NotifyFilters.DirectoryName;
+
+                dirwatcher.Error += Watcher_Error;
+                dirwatcher.Created += Watcher_Created;
+                dirwatcher.Changed += Watcher_Changed;
+                dirwatcher.Renamed += Watcher_Renamed;
+                dirwatcher.Deleted += Watcher_Deleted;
+
+                dirwatcher.EnableRaisingEvents = true;
+
                 Cache.SystemWatchers.Add(watcher);
+                Cache.SystemWatchers.Add(dirwatcher);
             }
 
             while (true)
@@ -73,7 +89,7 @@ namespace CloudClient
 
                         if (sync.Folder)
                         {
-
+                            connect.CreateFolder(Token, sync.SyncPath, sync.RelevantPath, sync.FileName);
                         }
                         else
                         {
@@ -106,7 +122,7 @@ namespace CloudClient
                     else if (sync.EventAction == SyncQueue.Action.Deleted)
                     {
                         //Deleted
-                        //connect.Delete(Token, sync.SyncPath, sync.RelevantPath, sync.FileName);
+                        connect.Delete(Token, sync.SyncPath, sync.RelevantPath, sync.FileName);
                     }
                 }
 
@@ -160,6 +176,9 @@ namespace CloudClient
 
         private static void Watcher_Changed(object sender, FileSystemEventArgs e)
         {
+            if ((File.GetAttributes(e.FullPath) & FileAttributes.Directory) == FileAttributes.Directory)
+                return;
+
             Console.WriteLine("[NOTICE] FileSystemWatcher: FileChanged {FileName=" + e.Name + ", FullPath=" + e.FullPath + ", ChangeType=Changed}");
 
             string SyncPath = "";
@@ -204,7 +223,13 @@ namespace CloudClient
 
         private static void Watcher_Deleted(object sender, FileSystemEventArgs e)
         {
-            Console.WriteLine("[NOTICE] FileSystemWatcher: FileDeleted {FileName=" + e.Name + ", FullPath=" + e.FullPath + ", ChangeType=Deleted}");
+            bool isFolder = false;
+
+            foreach (FileSystemWatcher filewatcher in Cache.SystemWatchers)
+                if (sender == filewatcher && (filewatcher.NotifyFilter & NotifyFilters.DirectoryName) == NotifyFilters.DirectoryName)
+                    isFolder = true;
+
+            Console.WriteLine("[NOTICE] FileSystemWatcher: FileDeleted {FileName=" + e.Name + ", FullPath=" + e.FullPath + ", ChangeType=Deleted, FileType=" + (isFolder ? "Folder" : "File") + "}");
 
             string SyncPath = "";
             string RelevantPath = "";
@@ -216,7 +241,7 @@ namespace CloudClient
 
             RelevantPath = e.FullPath.Replace(SyncPath, "").Replace(FileName, "");
 
-            Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Deleted, SyncPath, RelevantPath, FileName, (File.GetAttributes(e.FullPath) & FileAttributes.Directory) == FileAttributes.Directory));
+            Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Deleted, SyncPath, RelevantPath, FileName, isFolder));
 
             Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + e.FullPath + ", SyncPath=" + SyncPath + ", RelevantPath=" + RelevantPath + "}");
         }

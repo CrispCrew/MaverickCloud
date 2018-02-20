@@ -73,6 +73,7 @@
     <Compile Include="HandleClients\HandleCommand.cs" />
     <Compile Include="HandleClients\HandleAccount.cs" />
     <Compile Include="HandleClients\HandleFiles\HandleFiles.cs" />
+    <Compile Include="HandleClients\HandleFolders\HandleFolders.cs" />
     <Compile Include="HandleClients\HandleVersion\HandleVersion.cs" />
     <Compile Include="HandleClients\Tokens\Tokens.cs" />
     <Compile Include="Program.cs" />

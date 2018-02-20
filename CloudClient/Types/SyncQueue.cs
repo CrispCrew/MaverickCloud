@@ -48,7 +48,7 @@ namespace CloudClient
                 LastModified = Directory.GetLastWriteTimeUtc(FullPath).ToBinary();
                 Size = new DirectoryInfo(FullPath).EnumerateFiles("*.*", SearchOption.AllDirectories).Sum(fi => fi.Length);
             }
-            else
+            else if (EventAction != Action.Deleted && EventAction != Action.Renamed)
             {
                 FullPath = SyncPath + RelevantPath + FileName;
                 Created = File.GetCreationTimeUtc(FullPath).ToBinary();
@@ -81,7 +81,7 @@ namespace CloudClient
                 LastModified = Directory.GetLastWriteTimeUtc(FullPath).ToBinary();
                 Size = new DirectoryInfo(FullPath).EnumerateFiles("*.*", SearchOption.AllDirectories).Sum(fi => fi.Length);
             }
-            else
+            else if (EventAction != Action.Deleted && EventAction != Action.Renamed)
             {
                 FullPath = SyncPath + RelevantPath + FileName;
                 Created = File.GetCreationTimeUtc(FullPath).ToBinary();

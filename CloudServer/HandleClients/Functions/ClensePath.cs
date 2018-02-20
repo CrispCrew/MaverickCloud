@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,12 +16,12 @@ namespace CloudServer.HandleClients
 
         public static string CleanPath(Token AuthToken, string SyncFolder)
         {
-            return Environment.CurrentDirectory + @"\Users\" + AuthToken.Username + @"\" + SyncFolder + @"\";
+            return Environment.CurrentDirectory + @"\Users\" + AuthToken.Username + @"\" + new DirectoryInfo(SyncFolder).Name + @"\";
         }
 
         public static string CleanPath(Token AuthToken, string SyncFolder, string RelevantPath)
         {
-            return Environment.CurrentDirectory + @"\Users\" + AuthToken.Username + @"\" + SyncFolder + @"\" + (RelevantPath != "" ? RelevantPath + @"\" : "");
+            return Environment.CurrentDirectory + @"\Users\" + AuthToken.Username + @"\" + new DirectoryInfo(SyncFolder).Name + @"\" + (RelevantPath != "" ? RelevantPath + @"\" : "");
         }
     }
 }

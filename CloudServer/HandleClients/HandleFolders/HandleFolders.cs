@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -8,10 +11,10 @@ namespace CloudServer.HandleClients
 {
     public class HandleFolders
     {
-        public static void Create(TcpClient clientSocket, string data)
+        public static string Create(TcpClient clientSocket, string data)
         {
             Token AuthToken;
-            string Token, SyncPath, RelevantPath, FileName, Created, LastModified, Size;
+            string Token, SyncPath, RelevantPath, FileName;
             string ServerResponse = null;
 
             if (Request.Contains("Token", data))
@@ -35,53 +38,19 @@ namespace CloudServer.HandleClients
                             {
                                 FileName = Request.Get("FileName", data);
 
-                                if (Request.Contains("Created", data))
+                                string FullPath = ClensePath.CleanPath(AuthToken, SyncPath, RelevantPath) + FileName;
+
+                                Console.WriteLine("Creating Folder: " + FullPath);
+
+                                if (!Directory.Exists(FullPath))
                                 {
-                                    Created = Request.Get("Created", data);
+                                    Directory.CreateDirectory(FullPath);
 
-                                    if (Request.Contains("LastModified", data))
-                                    {
-                                        LastModified = Request.Get("LastModified", data);
-
-                                        if (Request.Contains("Size", data))
-                                        {
-                                            Size = Request.Get("Size", data);
-
-                                            //Server Files -> User Folder -> SyncPath Folder -> Files
-                                            if (!Directory.Exists(ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, "")))
-                                                Directory.CreateDirectory(ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, ""));
-
-                                            string FullPath = ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, RelevantPath);
-
-                                            if (File.Exists(FullPath + FileName))
-                                                try { File.Delete(FullPath + FileName); } catch { Console.WriteLine("File Deletion Failed!"); }
-
-                                            if (DownloadFile(clientSocket.GetStream(), FullPath, FileName, Convert.ToInt64(Size)))
-                                            {
-                                                File.SetCreationTimeUtc(FullPath + FileName, DateTime.FromBinary(Convert.ToInt64(Created)));
-
-                                                File.SetLastWriteTimeUtc(FullPath + FileName, DateTime.FromBinary(Convert.ToInt64(LastModified)));
-
-                                                ServerResponse = "File Download Completed";
-                                            }
-                                            else
-                                            {
-                                                ServerResponse = "File Download Failed";
-                                            }
-                                        }
-                                        else
-                                        {
-                                            ServerResponse = "Size Parameter not found";
-                                        }
-                                    }
-                                    else
-                                    {
-                                        ServerResponse = "LastModified Parameter not found";
-                                    }
+                                    ServerResponse = "Folder Created";
                                 }
                                 else
                                 {
-                                    ServerResponse = "Created Parameter not found";
+                                    ServerResponse = "Folder Exists";
                                 }
                             }
                             else
