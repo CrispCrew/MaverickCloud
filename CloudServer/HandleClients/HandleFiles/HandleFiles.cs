@@ -308,7 +308,7 @@ namespace CloudServer.HandleClients
                         }
                     }
 
-                    Thread.Sleep(10); //10 mbps
+                    Thread.Sleep(1); //10ms = 10 mbps | 1ms = 100mbps
                 }
 
                 serverStream.Flush();

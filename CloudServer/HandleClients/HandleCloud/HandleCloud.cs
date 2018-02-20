@@ -21,6 +21,7 @@ namespace CloudServer.HandleClients
             string RelevantPath;
             string FileName;
             string OldFileName;
+            bool Folder;
             string ServerResponse;
 
             if (Request.Contains("Token", data))
@@ -48,10 +49,15 @@ namespace CloudServer.HandleClients
                                 {
                                     OldFileName = Request.Get("OldFileName", data);
 
+                                    if (Request.Contains("Folder", data))
+                                        Folder = Request.Get("Folder", data) == "true" ? true : false;
+                                    else
+                                        Folder = false;
+
                                     string CleanPath = ClensePath.CleanPath(AuthToken, SyncPath, RelevantPath);
 
                                     //Return True ( File Renamed ) or False ( File Failed to Rename )
-                                    ServerResponse = CloudFunctions.RenameFile(CleanPath, FileName, OldFileName) ? "true" : "false";
+                                    ServerResponse = CloudFunctions.RenameFile(CleanPath, FileName, OldFileName, Folder) ? "File Renamed" : "File Failed to be Renamed";
                                 }
                                 else
                                 {
@@ -93,6 +99,7 @@ namespace CloudServer.HandleClients
             string SyncPath;
             string RelevantPath;
             string FileName;
+            bool Folder;
             string ServerResponse;
 
             if (Request.Contains("Token", data))
@@ -116,10 +123,15 @@ namespace CloudServer.HandleClients
                             {
                                 FileName = Request.Get("FileName", data);
 
+                                if(Request.Contains("Folder", data))
+                                    Folder = Request.Get("Folder", data) == "true" ? true : false;
+                                else
+                                    Folder = false;
+
                                 string CleanPath = ClensePath.CleanPath(AuthToken, SyncPath, RelevantPath);
 
                                 //Return True ( File Renamed ) or False ( File Failed to Rename )
-                                ServerResponse = CloudFunctions.DeleteFile(CleanPath, FileName) ? "File Deleted" : "File Failed to Delete";
+                                ServerResponse = CloudFunctions.DeleteFile(CleanPath, FileName, Folder) ? "File Deleted" : "File Failed to be Deleted";
                             }
                             else
                             {

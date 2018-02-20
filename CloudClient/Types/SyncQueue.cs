@@ -17,7 +17,7 @@ namespace CloudClient
         public string SyncPath;
         public string RelevantPath;
         public string FileName;
-        public string NewName;
+        public string OldFileName;
         public bool Folder;
 
         public string FullPath;
@@ -43,10 +43,10 @@ namespace CloudClient
 
             if (Folder)
             {
-                FullPath = SyncPath + RelevantPath + NewName;
-                Created = Directory.GetCreationTimeUtc(FullPath).ToBinary();
-                LastModified = Directory.GetLastWriteTimeUtc(FullPath).ToBinary();
-                Size = new DirectoryInfo(FullPath).EnumerateFiles("*.*", SearchOption.AllDirectories).Sum(fi => fi.Length);
+                FullPath = SyncPath + RelevantPath + FileName;
+                //Created = Directory.GetCreationTimeUtc(FullPath).ToBinary();
+                //LastModified = Directory.GetLastWriteTimeUtc(FullPath).ToBinary();
+                //Size = new DirectoryInfo(FullPath).EnumerateFiles("*.*", SearchOption.AllDirectories).Sum(fi => fi.Length);
             }
             else if (EventAction != Action.Deleted && EventAction != Action.Renamed)
             {
@@ -54,6 +54,10 @@ namespace CloudClient
                 Created = File.GetCreationTimeUtc(FullPath).ToBinary();
                 LastModified = File.GetLastWriteTimeUtc(FullPath).ToBinary();
                 Size = new FileInfo(FullPath).Length;
+            }
+            else
+            {
+                FullPath = SyncPath + RelevantPath + FileName;
             }
         }
 
@@ -64,29 +68,26 @@ namespace CloudClient
         /// <param name="SyncPath"></param>
         /// <param name="RelevantPath"></param>
         /// <param name="FileName"></param>
-        /// <param name="NewName"></param>
-        public SyncQueue(Action EventAction, string SyncPath, string RelevantPath, string FileName, string NewName, bool Folder)
+        /// <param name="OldFileName"></param>
+        public SyncQueue(Action EventAction, string SyncPath, string RelevantPath, string FileName, string OldFileName, bool Folder)
         {
             this.EventAction = EventAction;
             this.SyncPath = SyncPath;
             this.RelevantPath = RelevantPath;
             this.FileName = FileName;
-            this.NewName = NewName;
+            this.OldFileName = OldFileName;
             this.Folder = Folder;
 
             if (Folder)
             {
-                FullPath = SyncPath + RelevantPath + NewName;
+                FullPath = SyncPath + RelevantPath + FileName;
                 Created = Directory.GetCreationTimeUtc(FullPath).ToBinary();
                 LastModified = Directory.GetLastWriteTimeUtc(FullPath).ToBinary();
-                Size = new DirectoryInfo(FullPath).EnumerateFiles("*.*", SearchOption.AllDirectories).Sum(fi => fi.Length);
+                //Size = new DirectoryInfo(FullPath).EnumerateFiles("*.*", SearchOption.AllDirectories).Sum(fi => fi.Length);
             }
-            else if (EventAction != Action.Deleted && EventAction != Action.Renamed)
+            else
             {
                 FullPath = SyncPath + RelevantPath + FileName;
-                Created = File.GetCreationTimeUtc(FullPath).ToBinary();
-                LastModified = File.GetLastWriteTimeUtc(FullPath).ToBinary();
-                Size = new FileInfo(FullPath).Length;
             }
         }
     }

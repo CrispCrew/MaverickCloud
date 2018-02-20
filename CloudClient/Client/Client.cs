@@ -146,12 +146,12 @@ namespace CloudClient
 
             timer.Reset();
 
-            if (Response != "Authenticated")
+            if (Response == "Authenticated")
             {
-                return false;
+                return true;
             }
 
-            return true;
+            return false;
         }
 
         public string Files(string Token)
@@ -206,12 +206,10 @@ namespace CloudClient
 
             timer.Reset();
 
-            if (Response != "Folder Created")
-            {
-                return false;
-            }
+            if (Response == "Folder Created" || Response == "Folder Exists")
+                return true;
 
-            return true;
+            return false;
         }
 
         /// <summary>
@@ -479,9 +477,21 @@ namespace CloudClient
             return false;
         }
 
-        public bool Delete(string Token, string SyncPath, string RelevantPath, string FileName)
+        public bool Rename(string Token, string SyncPath, string RelevantPath, string FileName, string OldFileName, bool Folder)
         {
-            string response = API.SendAPIRequest(clientSocket, "Request=Delete&Token=" + Token + "&SyncPath=" + SyncPath + "&RelevantPath=" + RelevantPath + "&FileName=" + FileName);
+            string response = API.SendAPIRequest(clientSocket, "Request=Rename&Token=" + Token + "&SyncPath=" + SyncPath + "&RelevantPath=" + RelevantPath + "&FileName=" + FileName + "&OldFileName=" + OldFileName + "&Folder=" + (Folder ? "true" : "false"));
+
+            Console.WriteLine(response);
+
+            if (response == "File Renamed")
+                return true;
+
+            return false;
+        }
+
+        public bool Delete(string Token, string SyncPath, string RelevantPath, string FileName, bool Folder)
+        {
+            string response = API.SendAPIRequest(clientSocket, "Request=Delete&Token=" + Token + "&SyncPath=" + SyncPath + "&RelevantPath=" + RelevantPath + "&FileName=" + FileName + "&Folder=" + (Folder ? "true" : "false"));
 
             Console.WriteLine(response);
 

@@ -169,7 +169,7 @@ namespace CloudServer.HandleClients
                 {
                     lock (AuthTokens)
                     {
-                        tokens[index].LastRequest = DateTime.Now;
+                        AuthTokens[index].LastRequest = DateTime.Now;
                     }
 
                     return token;
@@ -203,7 +203,7 @@ namespace CloudServer.HandleClients
                 {
                     lock (AuthTokens)
                     {
-                        tokens[index].LastRequest = DateTime.Now;
+                        AuthTokens[index].LastRequest = DateTime.Now;
                     }
 
                     return token;

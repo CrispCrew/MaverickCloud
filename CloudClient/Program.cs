@@ -77,11 +77,19 @@ namespace CloudClient
 
             while (true)
             {
-                Console.WriteLine(connect.Files(Token));
+                //Console.WriteLine(connect.Files(Token));
 
                 foreach (SyncQueue sync in new List<SyncQueue>(Cache.SyncQueue))
                 {
                     Console.WriteLine("Processing File: File={" + sync.SyncPath + sync.RelevantPath + sync.FileName + "}");
+
+                    if (!sync.Folder && sync.EventAction != SyncQueue.Action.Deleted)
+                        while (IsFileLocked(new FileInfo(sync.FullPath)))
+                        {
+                            Console.WriteLine(sync.FullPath + " is locked!!!!");
+
+                            Thread.Sleep(1000);
+                        }
 
                     if (sync.EventAction == SyncQueue.Action.Created)
                     {
@@ -89,17 +97,21 @@ namespace CloudClient
 
                         if (sync.Folder)
                         {
-                            connect.CreateFolder(Token, sync.SyncPath, sync.RelevantPath, sync.FileName);
+                            if (connect.CreateFolder(Token, sync.SyncPath, sync.RelevantPath, sync.FileName))
+                                Cache.SyncQueue.Remove(sync);
                         }
                         else
                         {
                             //Created
-                            connect.Upload(Token, sync.SyncPath, sync.RelevantPath, sync.FileName);
+                            if (connect.Upload(Token, sync.SyncPath, sync.RelevantPath, sync.FileName))
+                                Cache.SyncQueue.Remove(sync);
 
+                            /*
                             if (connect.CompareProperties(Token, sync.SyncPath, sync.RelevantPath, sync.FileName))
                             {
                                 Cache.SyncQueue.Remove(sync);
                             }
+                            */
                         }
                     }
                     else if (sync.EventAction == SyncQueue.Action.Changed)
@@ -107,22 +119,27 @@ namespace CloudClient
                         Console.WriteLine("File Changed: SyncPath={" + sync.SyncPath + "}, RelevantPath={" + sync.RelevantPath + "}, FileName={" + sync.FileName + "}");
 
                         //Changed -> Client Changed File
-                        connect.Upload(Token, sync.SyncPath, sync.RelevantPath, sync.FileName);
+                        if (connect.Upload(Token, sync.SyncPath, sync.RelevantPath, sync.FileName))
+                            Cache.SyncQueue.Remove(sync);
 
+                        /*
                         if (connect.CompareProperties(Token, sync.SyncPath, sync.RelevantPath, sync.FileName))
                         {
                             Cache.SyncQueue.Remove(sync);
                         }
+                        */
                     }
                     else if (sync.EventAction == SyncQueue.Action.Renamed)
                     {
                         //Renamed
-                        //connect.Rename(Token, sync.SyncPath, sync.RelevantPath, sync.FileName);
+                        if (connect.Rename(Token, sync.SyncPath, sync.RelevantPath, sync.FileName, sync.OldFileName, sync.Folder))
+                            Cache.SyncQueue.Remove(sync);
                     }
                     else if (sync.EventAction == SyncQueue.Action.Deleted)
                     {
                         //Deleted
-                        connect.Delete(Token, sync.SyncPath, sync.RelevantPath, sync.FileName);
+                        if (connect.Delete(Token, sync.SyncPath, sync.RelevantPath, sync.FileName, sync.Folder))
+                            Cache.SyncQueue.Remove(sync);
                     }
                 }
 
@@ -165,9 +182,10 @@ namespace CloudClient
             RelevantPath = e.FullPath.Replace(SyncPath, "").Replace(FileName, "");
 
             foreach (SyncQueue sync in new List<SyncQueue>(Cache.SyncQueue))
-                if (sync.EventAction == SyncQueue.Action.Created)
-                    if (sync.LastModified >= File.GetLastWriteTimeUtc(SyncPath + RelevantPath + FileName).ToBinary())
-                        return;
+                if (sync.SyncPath == SyncPath && sync.RelevantPath == RelevantPath && sync.FileName == FileName)
+                    if (sync.EventAction == SyncQueue.Action.Created)
+                        if (sync.LastModified >= File.GetLastWriteTimeUtc(SyncPath + RelevantPath + FileName).ToBinary())
+                            return;
 
             Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Created, SyncPath, RelevantPath, FileName, (File.GetAttributes(e.FullPath) & FileAttributes.Directory) == FileAttributes.Directory));
 
@@ -192,9 +210,10 @@ namespace CloudClient
             RelevantPath = e.FullPath.Replace(SyncPath, "").Replace(FileName, "");
 
             foreach (SyncQueue sync in new List<SyncQueue>(Cache.SyncQueue))
-                if (sync.EventAction == SyncQueue.Action.Created)
-                    if (sync.LastModified >= File.GetLastWriteTimeUtc(SyncPath + RelevantPath + FileName).ToBinary())
-                        return;
+                if (sync.SyncPath == SyncPath && sync.RelevantPath == RelevantPath && sync.FileName == FileName)
+                    if (sync.EventAction == SyncQueue.Action.Changed)
+                        if (sync.LastModified >= File.GetLastWriteTimeUtc(SyncPath + RelevantPath + FileName).ToBinary())
+                            return;
 
             Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Changed, SyncPath, RelevantPath, FileName, (File.GetAttributes(e.FullPath) & FileAttributes.Directory) == FileAttributes.Directory));
 
@@ -207,8 +226,8 @@ namespace CloudClient
 
             string SyncPath = "";
             string RelevantPath = "";
-            string FileName = e.OldName;
-            string NewName = e.Name;
+            string FileName = e.Name;
+            string OldFileName = e.OldName;
 
             foreach (FileSystemWatcher watcher in Cache.SystemWatchers)
                 if (e.FullPath.Contains(watcher.Path))
@@ -216,7 +235,7 @@ namespace CloudClient
 
             RelevantPath = e.FullPath.Replace(SyncPath, "").Replace(FileName, "");
 
-            Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Renamed, SyncPath, RelevantPath, FileName, NewName, (File.GetAttributes(e.FullPath) & FileAttributes.Directory) == FileAttributes.Directory));
+            Cache.SyncQueue.Add(new SyncQueue(SyncQueue.Action.Renamed, SyncPath, RelevantPath, FileName, OldFileName, (File.GetAttributes(e.FullPath) & FileAttributes.Directory) == FileAttributes.Directory));
 
             Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + e.FullPath + ", SyncPath=" + SyncPath + ", RelevantPath=" + RelevantPath + "}");
         }
@@ -246,5 +265,26 @@ namespace CloudClient
             Console.WriteLine("[NOTICE] FileSystemWatcher: {Unfiltred=" + e.FullPath + ", SyncPath=" + SyncPath + ", RelevantPath=" + RelevantPath + "}");
         }
         #endregion
+
+        private static bool IsFileLocked(FileInfo file)
+        {
+            FileStream stream = null;
+
+            try
+            {
+                stream = file.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch
+            {
+                return true;
+            }
+            finally
+            {
+                if (stream != null)
+                    stream.Close();
+            }
+
+            return false;
+        }
     }
 }
