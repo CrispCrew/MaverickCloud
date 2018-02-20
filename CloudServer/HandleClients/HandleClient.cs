@@ -73,11 +73,11 @@ namespace CloudServer
                     }
                     else if (BitConverter.ToInt32(size, 0) == 0)
                     {
-                        serverResponse = "Too Small of a Request";
+                        serverResponse = "Too Small of a Request [" + BitConverter.ToInt32(size, 0) + "]";
                     }
                     else if (BitConverter.ToInt32(size, 0) > 1048576)
                     {
-                        serverResponse = "Too Large of a Request";
+                        serverResponse = "Too Large of a Request [" + BitConverter.ToInt32(size, 0) + "]";
                     }
                     else
                     {

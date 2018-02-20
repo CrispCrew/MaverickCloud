@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace CloudClient
 {
@@ -39,7 +36,7 @@ namespace CloudClient
 
             clientSocket.NoDelay = true;
 
-            clientSocket.Connect("127.0.0.1", 6969);
+            clientSocket.Connect("158.69.255.77", 6060);
 
             Console.WriteLine("Client Socket Program - Server Connected ...");
         }
@@ -156,6 +153,35 @@ namespace CloudClient
             return true;
         }
 
+        public string Files(string Token)
+        {
+            if (!clientSocket.Connected)
+                Connect();
+
+            CleanStream();
+
+            //Sockets Connection
+            //Debug - Log Times
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
+
+            //Send the Cheat Type at Launch
+            string Response = API.SendAPIRequest(clientSocket, "Request=Files&Token=" + Token);
+
+            Console.WriteLine("Request: " + "LoginCount" + " -> " + "Response: " + Response);
+
+            Console.Write(timer.Elapsed.TotalMilliseconds + "ms");
+
+            timer.Reset();
+
+            if (Response == "Files Retrieved")
+            {
+                return "Files Retrieved";
+            }
+
+            return "Files Retrieval Failed";
+        }
+
         /// <summary>
         /// Contacts server for a download - Cheat / Update
         /// </summary>
@@ -163,8 +189,13 @@ namespace CloudClient
         /// <param name="File">File to Download</param>
         /// <param name="productid">Product ID</param>
         /// <returns></returns>
-        public bool Upload(string Token, string SyncFolder, string FullPath, string Name)
+        public bool Upload(string Token, string SyncPath, string RelevantPath, string FileName)
         {
+            string FullPath = SyncPath + "\\" + RelevantPath + "\\" + FileName;
+            long Created = File.GetCreationTimeUtc(FullPath).ToBinary();
+            long LastModified = File.GetLastWriteTimeUtc(FullPath).ToBinary();
+            long Size = new FileInfo(FullPath).Length;
+
             if (!clientSocket.Connected)
                 Connect();
 
@@ -184,7 +215,7 @@ namespace CloudClient
             timer.Start();
 
             serverStream = clientSocket.GetStream();
-            byte[] outStream = Encoding.ASCII.GetBytes("Request=Upload&Token=" + Token + "&Folder=" + "" + "&Path=" + FullPath + "&Name=" + Name);
+            byte[] outStream = Encoding.ASCII.GetBytes("Request=Upload&Token=" + Token + "&SyncPath=" + SyncPath + "&RelevantPath=" + RelevantPath + "&FileName=" + FileName + "&Created=" + Created + "&LastModified=" + LastModified + "&Size=" + Size);
             byte[] outSize = BitConverter.GetBytes(outStream.Length);
 
             Console.WriteLine("Raw Data: " + BitConverter.ToInt32(outSize, 0) + " -> " + Encoding.ASCII.GetString(outStream));
@@ -198,27 +229,13 @@ namespace CloudClient
 
             using (FileStream fileStream = File.OpenRead(FullPath))
             {
-                long expectedsize = File.ReadAllBytes(FullPath).LongLength;
-
-                Console.WriteLine("File: " + FullPath + " Size: " + expectedsize);
-
-                outStream = Encoding.ASCII.GetBytes("Size=" + expectedsize);
-                outSize = BitConverter.GetBytes(outStream.Length);
-
-                Console.WriteLine("Raw Data: " + BitConverter.ToInt32(outSize, 0) + " -> " + Encoding.ASCII.GetString(outStream));
-
-                //Write Bytes
-                serverStream.Write(outSize, 0, outSize.Length);
-                serverStream.Write(outStream, 0, outStream.Length);
-                serverStream.Flush();
-
                 int totalBytes = 0;
                 int bytesRead = 0;
                 while (true)
                 {
                     byte[] buffer = new byte[13106]; //65536 Bytes * 2 = 1310720 Bytes/ps || 10 Mbps
 
-                    if ((totalBytes + buffer.Length) <= expectedsize) //sent bytes + sending bytes smaller than or equal to Size of File
+                    if ((totalBytes + buffer.Length) <= Size) //sent bytes + sending bytes smaller than or equal to Size of File
                     {
                         if ((bytesRead = fileStream.Read(buffer, 0, buffer.Length)) > 0)
                         {
@@ -237,7 +254,7 @@ namespace CloudClient
                     }
                     else
                     {
-                        if ((bytesRead = fileStream.Read(buffer, 0, (int)expectedsize - totalBytes)) > 0)
+                        if ((bytesRead = fileStream.Read(buffer, 0, (int)Size - totalBytes)) > 0)
                         {
                             serverStream.Write(buffer, 0, bytesRead);
 
@@ -253,7 +270,7 @@ namespace CloudClient
                         }
                     }
 
-                    Thread.Sleep(10); //10 mbps
+                    Thread.Sleep(1); //10ms = 10 mbps //1ms = 100mbps
                 }
 
                 serverStream.Flush();
@@ -263,11 +280,31 @@ namespace CloudClient
 
             timer.Reset();
 
-            return true;
+            //Get Response
+            byte[] size = new byte[4];
+
+            serverStream.Read(size, 0, size.Length);
+
+            byte[] bytesFrom = new byte[BitConverter.ToInt32(size, 0)];
+
+            Console.WriteLine("ExpectedSize: " + BitConverter.ToInt32(size, 0) + " bytesFrom Length: " + bytesFrom.Length);
+
+            serverStream.Read(bytesFrom, 0, bytesFrom.Length);
+
+            string returndata = Encoding.ASCII.GetString(bytesFrom);
+
+            Console.WriteLine("Data from Server: " + returndata);
+
+            if (returndata == "File Download Completed")
+                return true;
+
+            return false;
         }
 
-        public bool Download(string Token, string SyncFolder, string FullPath, string Name)
+        public bool Download(string Token, string SyncPath, string RelevantPath, string FileName)
         {
+            string FullPath = SyncPath + "\\" + RelevantPath + "\\" + FileName;
+
             if (!clientSocket.Connected)
                 Connect();
 
@@ -285,7 +322,7 @@ namespace CloudClient
             timer.Start();
 
             serverStream = clientSocket.GetStream();
-            byte[] outStream = Encoding.ASCII.GetBytes("Request=Upload&Token=" + Token + "&Folder=" + "" + "&Path=" + FullPath + "&Name=" + Name);
+            byte[] outStream = Encoding.ASCII.GetBytes("Request=Download&Token=" + Token + "&SyncPath=" + SyncPath + "&RelevantPath=" + RelevantPath + "&FileName=" + FileName);
             byte[] outSize = BitConverter.GetBytes(outStream.Length);
 
             Console.WriteLine("Raw Data: " + BitConverter.ToInt32(outSize, 0) + " -> " + Encoding.ASCII.GetString(outStream));
@@ -346,7 +383,86 @@ namespace CloudClient
 
             timer.Reset();
 
-            return true;
+            //Get Response
+            size = new byte[4];
+
+            serverStream.Read(size, 0, size.Length);
+
+            bytesFrom = new byte[BitConverter.ToInt32(size, 0)];
+
+            Console.WriteLine("ExpectedSize: " + BitConverter.ToInt32(size, 0) + " bytesFrom Length: " + bytesFrom.Length);
+
+            serverStream.Read(bytesFrom, 0, bytesFrom.Length);
+
+            returndata = Encoding.ASCII.GetString(bytesFrom);
+
+            Console.WriteLine("Data from Server: " + returndata);
+
+            string Created;
+            string LastModified;
+            string Status;
+
+            if (API.Contains("Created", returndata))
+            {
+                Created = API.Get("Created", returndata);
+
+                if (API.Contains("LastModified", returndata))
+                {
+                    LastModified = API.Get("LastModified", returndata);
+
+                    if (API.Contains("Status", returndata))
+                    {
+                        Status = API.Get("Status", returndata);
+
+                        if (Status == "File Upload Completed")
+                        {
+                            File.SetCreationTimeUtc(FullPath, DateTime.FromBinary(Convert.ToInt64(Created)));
+
+                            File.SetLastWriteTimeUtc(FullPath, DateTime.FromBinary(Convert.ToInt64(LastModified)));
+
+                            Console.WriteLine("File Download Completed");
+
+                            return true;
+                        }
+                        else
+                        {
+                            Console.WriteLine("File Download Failed!");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Status Parameter not found");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("LastModified Parameter not found");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Created Parameter not found");
+            }
+
+            return false;
+        }
+
+        public bool CompareProperties(string Token, string SyncPath, string RelevantPath, string FileName)
+        {
+            string FullPath = SyncPath + "\\" + RelevantPath + "\\" + FileName;
+
+            long Size = new FileInfo(FullPath).Length;
+            DateTime Created = File.GetCreationTimeUtc(FullPath);
+            DateTime LastModified = File.GetLastWriteTimeUtc(FullPath);
+
+            string response = API.SendAPIRequest(clientSocket, "Request=CompareProperties&Token=" + Token + "&Size=" + Size + "&Created=" + Created.ToBinary() + "&LastModified=" + LastModified.ToBinary() + "&SyncPath=" + SyncPath + "&RelevantPath=" + RelevantPath + "&FileName=" + FileName);
+
+            Console.WriteLine(response);
+
+            if (response == "Same")
+                return true;
+
+            return false;
         }
 
         private void CleanStream()

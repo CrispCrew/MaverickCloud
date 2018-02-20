@@ -52,6 +52,7 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="MySql.Data, Version=6.9.9.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -62,11 +63,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="API\API.cs" />
     <Compile Include="Functions\Request.cs" />
+    <Compile Include="HandleClients\Functions\ClensePath.cs" />
+    <Compile Include="HandleClients\Functions\CloudFunctions.cs" />
+    <Compile Include="HandleClients\HandleAPICheck\HandleAPICheck.cs" />
     <Compile Include="HandleClients\HandleClient.cs" />
+    <Compile Include="HandleClients\HandleCloud\HandleCloud.cs" />
     <Compile Include="HandleClients\HandleCommand.cs" />
     <Compile Include="HandleClients\HandleAccount.cs" />
     <Compile Include="HandleClients\HandleFiles\HandleFiles.cs" />
+    <Compile Include="HandleClients\HandleVersion\HandleVersion.cs" />
     <Compile Include="HandleClients\Tokens\Tokens.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -74,6 +81,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <Compile Include="Database\Connect.cs" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -17,59 +18,126 @@ namespace CloudServer.HandleClients
         /// <param name="clientSocket"></param>
         /// <param name="data"></param>
         /// <returns></returns>
-        public static string UploadFile(TcpClient clientSocket, string data)
+        public static string Files(TcpClient clientSocket, string data)
         {
+            Token AuthToken;
             string Token;
-            string Folder;
-            string Path;
-            string Name;
             string ServerResponse = null;
 
-            if (Request.Contains("Folder", data))
+            if (Request.Contains("Token", data))
             {
-                Folder = Request.Get("Folder", data);
+                Token = Request.Get("Token", data);
 
-                if (Request.Contains("Token", data))
+                //Get Token by Token -> Get Token by IP Address -> Compare Returned Tokens
+                if (Tokens.GetTokenByToken(Token) != null && Tokens.GetToken(((IPEndPoint)clientSocket.Client.RemoteEndPoint).Address.ToString()) != null && Tokens.GetTokenByToken(Token) == Tokens.GetToken(((IPEndPoint)clientSocket.Client.RemoteEndPoint).Address.ToString()))
                 {
-                    Token = Request.Get("Token", data);
+                    AuthToken = Tokens.GetTokenByToken(Token);
 
-                    Token token = Tokens.GetTokenByToken(Token);
-
-                    if (Request.Contains("Path", data))
+                    //Root of the Sync Path
+                    foreach (string file in GetFiles(ClensePath.CleanPath(AuthToken)))
                     {
-                        Path = Request.Get("Path", data);
+                        //SyncPath = Folder Name of the Sync Folder
 
-                        if (Request.Contains("Name", data))
-                        {
-                            Name = Request.Get("Name", data);
+                        //C:\\Server\\CrispyCheats\\MaverickCloud1\\File.txt -> Replace("C:\\Server\\CrispyCheats") = \\MaverickCloud1\\File.txt
 
-                            if (UploadFile(clientSocket.GetStream(), Environment.CurrentDirectory + "\\Users\\" + token.Username + "\\" + Folder + "\\" + Name, Name))
-                            {
-                                ServerResponse = "File Upload Completed";
-                            }
-                            else
-                            {
-                                ServerResponse = "File Upload Failed";
-                            }
-                        }
-                        else
-                        {
-                            ServerResponse = "Name Parameter was not provided";
-                        }
+
+                        string SyncPath = file.Replace(ClensePath.CleanPath(AuthToken), "").Replace(new FileInfo(file).Name, "").Replace(@"\", "");
+
+                        Console.WriteLine("Clean Path: " + ClensePath.CleanPath(AuthToken, SyncPath) + " File Path: " + file);
+
+                        string RelevantPath = file.Replace(ClensePath.CleanPath(AuthToken, SyncPath), "").Replace(new FileInfo(file).Name, "");
+
+
+                        string FileName = new FileInfo(file).Name;
+
+                        Console.WriteLine("File Info: SyncPath={0}, RelevantPath={1}, FileName={2}", SyncPath, RelevantPath, FileName);
                     }
-                    else
-                    {
-                        ServerResponse = "File Parameter was not provided";
-                    }
+
+                    ServerResponse = "Files Retrieved";
                 }
                 else
                 {
-                    ServerResponse = "Token Parameter was not provided";
+                    ServerResponse = "Authentication Token not found";
                 }
             }
             else
             {
-                ServerResponse = "Folder Parameter was not provided";
+                ServerResponse = "Token Parameter was not provided";
+            }
+
+            return ServerResponse;
+        }
+
+        /// <summary>
+        /// Calls UploadFile ( Upload to Client )
+        /// </summary>
+        /// <param name="clientSocket"></param>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public static string UploadFile(TcpClient clientSocket, string data)
+        {
+            Token AuthToken;
+            string Token;
+            string SyncPath;
+            string RelevantPath;
+            string FileName;
+            string ServerResponse = null;
+
+            if (Request.Contains("Token", data))
+            {
+                Token = Request.Get("Token", data);
+
+                //Get Token by Token -> Get Token by IP Address -> Compare Returned Tokens
+                if (Tokens.GetTokenByToken(Token) != null && Tokens.GetToken(((IPEndPoint)clientSocket.Client.RemoteEndPoint).Address.ToString()) != null && Tokens.GetTokenByToken(Token) == Tokens.GetToken(((IPEndPoint)clientSocket.Client.RemoteEndPoint).Address.ToString()))
+                {
+                    AuthToken = Tokens.GetTokenByToken(Token);
+
+                    if (Request.Contains("SyncPath", data))
+                    {
+                        SyncPath = Request.Get("SyncPath", data);
+
+                        if (Request.Contains("RelevantPath", data))
+                        {
+                            RelevantPath = Request.Get("RelevantPath", data);
+ 
+                            if (Request.Contains("FileName", data))
+                            {
+                                FileName = Request.Get("FileName", data);
+
+                                string FullPath = ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, RelevantPath);
+
+                                if (UploadFile(clientSocket.GetStream(), FullPath, FileName, new FileInfo(FullPath + FileName).Length))
+                                {
+                                    ServerResponse = "Created=" + File.GetCreationTimeUtc(FullPath + FileName).ToBinary() + "&LastModified=" + File.GetLastWriteTimeUtc(FullPath + FileName).ToBinary() + "&Status=File Upload Completed";
+                                }
+                                else
+                                {
+                                    ServerResponse = "File Upload Failed";
+                                }
+                            }
+                            else
+                            {
+                                ServerResponse = "FileName Parameter was not provided";
+                            }
+                        }
+                        else
+                        {
+                            ServerResponse = "RelevantPath Parameter was not provided";
+                        }
+                    }
+                    else
+                    {
+                        ServerResponse = "SyncPath Parameter was not provided";
+                    }
+                }
+                else
+                {
+                    ServerResponse = "Authentication Token not found";
+                }
+            }
+            else
+            {
+                ServerResponse = "Token Parameter was not provided";
             }
 
             return ServerResponse;
@@ -83,52 +151,98 @@ namespace CloudServer.HandleClients
         /// <returns></returns>
         public static string DownloadFile(TcpClient clientSocket, string data)
         {
-            string Token;
-            string Folder;
-            string Path;
-            string Name;
+            Token AuthToken;
+            string Token, SyncPath, RelevantPath, FileName, Created, LastModified, Size;
             string ServerResponse = null;
 
             if (Request.Contains("Token", data))
             {
                 Token = Request.Get("Token", data);
 
-                Token token = Tokens.GetTokenByToken(Token);
-
-                if (Request.Contains("Folder", data))
+                //Get Token by Token -> Get Token by IP Address -> Compare Returned Tokens
+                if (Tokens.GetTokenByToken(Token) != null && Tokens.GetToken(((IPEndPoint)clientSocket.Client.RemoteEndPoint).Address.ToString()) != null && Tokens.GetTokenByToken(Token) == Tokens.GetToken(((IPEndPoint)clientSocket.Client.RemoteEndPoint).Address.ToString()))
                 {
-                    Folder = Request.Get("Folder", data);
+                    AuthToken = Tokens.GetTokenByToken(Token);
 
-                    if (Request.Contains("Path", data))
+                    if (Request.Contains("SyncPath", data))
                     {
-                        Path = Request.Get("Path", data);
+                        SyncPath = Request.Get("SyncPath", data);
 
-                        if (Request.Contains("Name", data))
+                        if (Request.Contains("RelevantPath", data))
                         {
-                            Name = Request.Get("Name", data);
+                            RelevantPath = Request.Get("RelevantPath", data);
 
-                            if (DownloadFile(clientSocket.GetStream(), Environment.CurrentDirectory + "\\Users\\" + token.Username + "\\" + Folder + "\\" + Name, Name))
+                            if (Request.Contains("FileName", data))
                             {
-                                ServerResponse = "File Download Completed";
+                                FileName = Request.Get("FileName", data);
+
+                                if (Request.Contains("Created", data))
+                                {
+                                    Created = Request.Get("Created", data);
+
+                                    if (Request.Contains("LastModified", data))
+                                    {
+                                        LastModified = Request.Get("LastModified", data);
+
+                                        if (Request.Contains("Size", data))
+                                        {
+                                            Size = Request.Get("Size", data);
+
+                                            //Server Files -> User Folder -> SyncPath Folder -> Files
+                                            if (!Directory.Exists(ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, "")))
+                                                Directory.CreateDirectory(ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, ""));
+
+                                            string FullPath = ClensePath.CleanPath(AuthToken, new DirectoryInfo(SyncPath).Name, RelevantPath);
+
+                                            if (File.Exists(FullPath + FileName))
+                                                try { File.Delete(FullPath + FileName); } catch { Console.WriteLine("File Deletion Failed!"); }
+
+                                            if (DownloadFile(clientSocket.GetStream(), FullPath, FileName, Convert.ToInt64(Size)))
+                                            {
+                                                File.SetCreationTimeUtc(FullPath + FileName, DateTime.FromBinary(Convert.ToInt64(Created)));
+
+                                                File.SetLastWriteTimeUtc(FullPath + FileName, DateTime.FromBinary(Convert.ToInt64(LastModified)));
+
+                                                ServerResponse = "File Download Completed";
+                                            }
+                                            else
+                                            {
+                                                ServerResponse = "File Download Failed";
+                                            }
+                                        }
+                                        else
+                                        {
+                                            ServerResponse = "Size Parameter not found";
+                                        }
+                                    }
+                                    else
+                                    {
+                                        ServerResponse = "LastModified Parameter not found";
+                                    }
+                                }
+                                else
+                                {
+                                    ServerResponse = "Created Parameter not found";
+                                }
                             }
                             else
                             {
-                                ServerResponse = "File Download Failed";
+                                ServerResponse = "FileName Parameter was not provided";
                             }
                         }
                         else
                         {
-                            ServerResponse = "Name Parameter was not provided";
+                            ServerResponse = "RelevantPath Parameter was not provided";
                         }
                     }
                     else
                     {
-                        ServerResponse = "File Parameter was not provided";
+                        ServerResponse = "SyncPath Parameter was not provided";
                     }
                 }
                 else
                 {
-                    ServerResponse = "Folder Parameter was not provided";
+                    ServerResponse = "Authentication Token not found";
                 }
             }
             else
@@ -145,25 +259,13 @@ namespace CloudServer.HandleClients
         /// <param name="serverStream"></param>
         /// <param name="file"></param>
         /// <returns></returns>
-        public static bool UploadFile(NetworkStream serverStream, string path, string name)
+        public static bool UploadFile(NetworkStream serverStream, string path, string name, long size)
         {
-            string FullPath = Path.GetDirectoryName(path) + "\\" + name;
+            string FullPath = path + "\\" + name;
 
             using (FileStream fileStream = File.OpenRead(FullPath))
             {
-                long expectedsize = File.ReadAllBytes(FullPath).LongLength;
-
-                Console.WriteLine("File: " + FullPath + " Size: " + expectedsize);
-
-                byte[] outStream = Encoding.ASCII.GetBytes("Size=" + expectedsize);
-                byte[] outSize = BitConverter.GetBytes(outStream.Length);
-
-                Console.WriteLine("Raw Data: " + BitConverter.ToInt32(outSize, 0) + " -> " + Encoding.ASCII.GetString(outStream));
-
-                //Write Bytes
-                serverStream.Write(outSize, 0, outSize.Length);
-                serverStream.Write(outStream, 0, outStream.Length);
-                serverStream.Flush();
+                API.SendAPIRequest(serverStream, "Size=" + size, false);
 
                 int totalBytes = 0;
                 int bytesRead = 0;
@@ -171,7 +273,7 @@ namespace CloudServer.HandleClients
                 {
                     byte[] buffer = new byte[13106]; //65536 Bytes * 2 = 1310720 Bytes/ps || 10 Mbps
 
-                    if ((totalBytes + buffer.Length) <= expectedsize) //sent bytes + sending bytes smaller than or equal to Size of File
+                    if ((totalBytes + buffer.Length) <= size) //sent bytes + sending bytes smaller than or equal to Size of File
                     {
                         if ((bytesRead = fileStream.Read(buffer, 0, buffer.Length)) > 0)
                         {
@@ -190,7 +292,7 @@ namespace CloudServer.HandleClients
                     }
                     else
                     {
-                        if ((bytesRead = fileStream.Read(buffer, 0, (int)expectedsize - totalBytes)) > 0)
+                        if ((bytesRead = fileStream.Read(buffer, 0, (int)size - totalBytes)) > 0)
                         {
                             serverStream.Write(buffer, 0, bytesRead);
 
@@ -221,63 +323,63 @@ namespace CloudServer.HandleClients
         /// <param name="serverStream"></param>
         /// <param name="file"></param>
         /// <returns></returns>
-        public static bool DownloadFile(NetworkStream serverStream, string path, string name)
+        public static bool DownloadFile(NetworkStream serverStream, string path, string name, long size)
         {
-            string FullPath = Path.GetDirectoryName(path) + "\\" + name;
+            string FullPath = path + "\\" + name;
 
-            if (!Directory.Exists(Path.GetDirectoryName(path)))
-                Directory.CreateDirectory(Path.GetDirectoryName(path));
+            if (!Directory.Exists(path))
+                Directory.CreateDirectory(path);
 
             Console.WriteLine("FullPath: " + FullPath);
 
-            byte[] size = new byte[4];
+            //Chunked Data Sizes
+            byte[] buffer = new byte[4096];
 
-            serverStream.Read(size, 0, size.Length);
-
-            byte[] bytesFrom = new byte[BitConverter.ToInt32(size, 0)];
-
-            Console.WriteLine("ExpectedSize: " + BitConverter.ToInt32(size, 0) + " bytesFrom Length: " + bytesFrom.Length);
-
-            serverStream.Read(bytesFrom, 0, bytesFrom.Length);
-
-            string returndata = Encoding.ASCII.GetString(bytesFrom); //Out of memory????
-
-            Console.WriteLine("Data from Server: " + returndata);
-
-            if (Request.Contains("Size", returndata))
+            using (FileStream fileStream = new FileStream(FullPath, FileMode.OpenOrCreate))
             {
-                long ExpectedSize = Convert.ToInt64(Request.Get("Size", returndata));
-
-                //Chunked Data Sizes
-                byte[] buffer = new byte[4096];
-
-                using (FileStream fileStream = new FileStream(FullPath, FileMode.OpenOrCreate))
+                long bytesReadTotal = 0;
+                int bytesRead = 0;
+                while (size > bytesReadTotal && (bytesRead = serverStream.Read(buffer, 0, buffer.Length)) > 0)
                 {
-                    long bytesReadTotal = 0;
-                    int bytesRead = 0;
-                    while (ExpectedSize > bytesReadTotal && (bytesRead = serverStream.Read(buffer, 0, buffer.Length)) > 0)
-                    {
-                        fileStream.Write(buffer, 0, bytesRead);
-                        bytesReadTotal += bytesRead;
+                    fileStream.Write(buffer, 0, bytesRead);
+                    bytesReadTotal += bytesRead;
 
-                        Console.WriteLine("\rNetwork Size: {0} Bytes Read: {1}", bytesRead, bytesReadTotal);
+                    Console.WriteLine("\rNetwork Size: {0} Bytes Read: {1}", bytesRead, bytesReadTotal);
 
-                        double pctComplete = ((double)bytesReadTotal / ExpectedSize) * 100;
+                    double pctComplete = ((double)bytesReadTotal / size) * 100;
 
-                        Console.WriteLine("Completed: {0}%", pctComplete);
-                    }
-
-                    fileStream.Dispose();
+                    Console.WriteLine("Completed: {0}%", pctComplete);
                 }
 
-                Console.WriteLine("Download Completed: " + FullPath + " -> Size: " + ExpectedSize);
-            }
-            else
-            {
-                Console.WriteLine("Size Parameter was not provided");
+                fileStream.Dispose();
             }
 
-            return false;
+            Console.WriteLine("Download Completed: " + FullPath + " -> Size: " + size);
+
+            return true;
+        }
+
+        private static List<string> GetFiles(string folder)
+        {
+            List<String> files = new List<String>();
+
+            try
+            {
+                foreach (string f in Directory.GetFiles(folder))
+                {
+                    files.Add(f);
+                }
+                foreach (string d in Directory.GetDirectories(folder))
+                {
+                    files.AddRange(GetFiles(d));
+                }
+            }
+            catch
+            {
+
+            }
+
+            return files;
         }
     }
 }

@@ -223,6 +223,12 @@ namespace CloudServer.HandleClients
         /// <returns></returns>
         public static string GenerateToken(string Ip, int ID, string Username)
         {
+            //Check for Previous Tokens
+            Token PreviousToken = GetToken(Ip);
+
+            if (PreviousToken != null && PreviousToken.ID == ID && PreviousToken.Username == Username)
+                return PreviousToken.AuthToken;
+
             //Check if the IP is Null or Invalid
             if (Ip != null && Ip != "")
             {

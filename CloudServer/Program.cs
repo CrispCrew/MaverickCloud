@@ -1,12 +1,9 @@
 ﻿using CloudServer.HandleClients;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace CloudServer
 {
@@ -23,7 +20,7 @@ namespace CloudServer
 
         private static void serverThread()
         {
-            TcpListener serverSocket = new TcpListener(6969);
+            TcpListener serverSocket = new TcpListener(IPAddress.Any, 6060);
 
             TcpClient clientSocket = default(TcpClient); //ClientSocket
             serverSocket.Start();

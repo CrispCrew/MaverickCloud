@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -27,6 +28,9 @@ namespace CloudServer.HandleClients
                     if (Username == "CrispyCheats" && Password == "test")
                     {
                         ServerResponse = "Login Found" + "-" + Tokens.GenerateToken(((IPEndPoint)clientSocket.Client.RemoteEndPoint).Address.ToString(), 1, Username);
+
+                        if (!Directory.Exists(Environment.CurrentDirectory + "\\Users\\" + Username + "\\"))
+                            Directory.CreateDirectory(Environment.CurrentDirectory + "\\Users\\" + Username + "\\");
                     }
                     else
                     {

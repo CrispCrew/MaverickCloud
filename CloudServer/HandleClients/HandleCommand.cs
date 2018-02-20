@@ -1,4 +1,5 @@
 ﻿using CloudServer;
+using CloudServer.Database;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,15 +25,30 @@ namespace CloudServer.HandleClients
                 Console.WriteLine(Function);
 
                 #region User API Requests
-
                 if (Function == "Version")
-                    ServerResponse = "0.00";
+                    ServerResponse = HandleVersion.ServerVersion();
                 else if (Function == "Login")
                     ServerResponse = HandleAccount.Login(clientSocket, data);
+                else if (Function == "APICheck")
+                    ServerResponse = HandleAPICheck.APICheck(clientSocket, data);
+                else if (Function == "Files")
+                    ServerResponse = HandleFiles.Files(clientSocket, data);
+                else if (Function == "CreateFolder")
+                    ServerResponse = HandleFolders.Create(clientSocket, data);
                 else if (Function == "Upload")
                     ServerResponse = HandleFiles.DownloadFile(clientSocket, data);
                 else if (Function == "Download")
                     ServerResponse = HandleFiles.UploadFile(clientSocket, data);
+                else if (Function == "Rename")
+                    ServerResponse = HandleCloud.Rename(clientSocket, data);
+                else if (Function == "Delete")
+                    ServerResponse = HandleCloud.Delete(clientSocket, data);
+                //Recieves Comparable Properties ( Size, Dates...etc ) and compares it to the Server Properties
+                else if (Function == "CompareProperties")
+                    ServerResponse = HandleCloud.CompareProperties(clientSocket, data);
+                //Recieves Section Hashes which is then compared to the Server Section Hashes
+                else if (Function == "CompareSections")
+                    ServerResponse = HandleCloud.CompareSections(clientSocket, data);
                 else
                     ServerResponse = "Undefined Request";
                 #endregion

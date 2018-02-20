@@ -6,7 +6,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CloudClient
+namespace CloudServer
 {
     /// <summary>
     /// The AuthLib API Client
@@ -18,14 +18,13 @@ namespace CloudClient
         /// <param name="clientSocket">Server Socket</param>
         /// <param name="Request">API Request</param>
         /// </summary>
-        public static string SendAPIRequest(TcpClient clientSocket, string Request, bool Response = true)
+        public static string SendAPIRequest(NetworkStream serverStream, string Request, bool Response = true)
         {
             //Sockets Connection
             //Debug - Log Times
             Stopwatch timer = new Stopwatch();
             timer.Start();
 
-            NetworkStream serverStream = clientSocket.GetStream();
             byte[] outStream = Encoding.ASCII.GetBytes(Request);
             byte[] outSize = BitConverter.GetBytes(outStream.Length);
 
